@@ -1,0 +1,20 @@
+Choking_Object
+Cleaning Product
+Electrical_Object
+Heavy_Object
+Medicine
+Poison_Object
+Stove
+appliance
+electric_plug
+electric_wire
+hard_object
+hot_container
+knife
+liquid_heat_source
+scissors
+sharp_object
+shelf_edge
+small_object
+staircase
+table_edge
