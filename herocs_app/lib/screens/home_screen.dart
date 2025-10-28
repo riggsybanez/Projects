@@ -19,15 +19,12 @@ class HomeScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Logo/Icon
               Icon(
                 Icons.health_and_safety,
                 size: 120,
                 color: Theme.of(context).primaryColor,
               ),
               const SizedBox(height: 24),
-              
-              // App Title
               const Text(
                 'HEROCS',
                 style: TextStyle(
@@ -37,10 +34,7 @@ class HomeScreen extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
-              
               const SizedBox(height: 8),
-              
-              // Subtitle
               const Text(
                 'Hazard Detection System\nfor Filipino Households',
                 style: TextStyle(
@@ -50,22 +44,19 @@ class HomeScreen extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
-              
               const SizedBox(height: 48),
-              
-              // Model Status Indicator
               Consumer<ObjectDetectionService>(
                 builder: (context, detectionService, child) {
                   return Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: detectionService.isModelLoaded 
-                          ? Colors.green[50] 
+                      color: detectionService.isModelLoaded
+                          ? Colors.green[50]
                           : Colors.orange[50],
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: detectionService.isModelLoaded 
-                            ? Colors.green 
+                        color: detectionService.isModelLoaded
+                            ? Colors.green
                             : Colors.orange,
                         width: 2,
                       ),
@@ -74,23 +65,23 @@ class HomeScreen extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          detectionService.isModelLoaded 
-                              ? Icons.check_circle 
+                          detectionService.isModelLoaded
+                              ? Icons.check_circle
                               : Icons.hourglass_empty,
-                          color: detectionService.isModelLoaded 
-                              ? Colors.green 
+                          color: detectionService.isModelLoaded
+                              ? Colors.green
                               : Colors.orange,
                         ),
                         const SizedBox(width: 12),
                         Text(
-                          detectionService.isModelLoaded 
-                              ? 'AI Model Ready' 
+                          detectionService.isModelLoaded
+                              ? 'AI Model Ready'
                               : 'Loading AI Model...',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
-                            color: detectionService.isModelLoaded 
-                                ? Colors.green[900] 
+                            color: detectionService.isModelLoaded
+                                ? Colors.green[900]
                                 : Colors.orange[900],
                           ),
                         ),
@@ -99,12 +90,9 @@ class HomeScreen extends StatelessWidget {
                   );
                 },
               ),
-              
               const SizedBox(height: 32),
-              
-              // Mode Selection Label
               Text(
-                'Pumili ng Mode:',
+                'Select Mode:', // ✅ Translated from 'Pumili ng Mode:'
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -112,10 +100,7 @@ class HomeScreen extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
-              
               const SizedBox(height: 16),
-              
-              // Mode 1: Real-time AR Camera
               Consumer<ObjectDetectionService>(
                 builder: (context, detectionService, child) {
                   return _ModeButton(
@@ -135,10 +120,7 @@ class HomeScreen extends StatelessWidget {
                   );
                 },
               ),
-              
               const SizedBox(height: 12),
-              
-              // Mode 2: Image from Gallery
               Consumer<ObjectDetectionService>(
                 builder: (context, detectionService, child) {
                   return _ModeButton(
@@ -158,19 +140,14 @@ class HomeScreen extends StatelessWidget {
                   );
                 },
               ),
-              
               const Spacer(),
-              
-              // Instructions Button
               TextButton.icon(
                 onPressed: () {
                   _showInstructions(context);
                 },
                 icon: const Icon(Icons.info_outline),
-                label: const Text('Paano Gamitin'),
+                label: const Text('How to Use'), // ✅ Translated from 'Paano Gamitin'
               ),
-              
-              // Footer
               const Text(
                 'For children 0-3 years old\nBased on WHO height standards',
                 style: TextStyle(
@@ -191,7 +168,7 @@ class HomeScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Paano Gamitin ang HEROCS'),
+        title: const Text('How to Use HEROCS'), // ✅ Translated from 'Paano Gamitin ang HEROCS'
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -225,7 +202,7 @@ class HomeScreen extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Naintindihan ko'),
+            child: const Text('I Understand'), // ✅ Translated from 'Naintindihan ko'
           ),
         ],
       ),

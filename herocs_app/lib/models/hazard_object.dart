@@ -13,7 +13,7 @@ class HazardObject {
   final double confidence;
   final DateTime detectedAt;
   final String? imageSnapshot;
-  
+
   // Edge proximity detection fields
   final bool isNearEdge;
   final double? distanceToEdge;
@@ -44,8 +44,8 @@ class HazardObject {
     bool isNearEdge = false,
     double? distanceToEdge,
   }) {
-    double riskScore = calculateRiskScore(hazardLabels, isNearEdge);  // Changed to public
-    String riskLevel = getRiskLevel(riskScore);                       // Changed to public
+    double riskScore = calculateRiskScore(hazardLabels, isNearEdge);
+    String riskLevel = getRiskLevel(riskScore);
 
     return HazardObject(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -62,68 +62,74 @@ class HazardObject {
   }
 
   /// Calculate risk score with edge proximity boost
-  /// Made PUBLIC so risk_classification.dart can use it
-  static double calculateRiskScore(List<String> labels, bool isNearEdge) {  // ✅ Removed underscore
+  /// UPDATED: Now supports full 0.5 scale per thesis Table 1.0
+  static double calculateRiskScore(List<String> labels, bool isNearEdge) {
     double baseScore = 0.1;
 
-    // Highly Dangerous (0.4)
+    // Highly Dangerous (0.5) - UPDATED from 0.4 to 0.5
     if (labels.contains('highly_dangerous')) {
-      baseScore = 0.4;
+      baseScore = 0.5;
     }
     else if ((labels.contains('sharp') || labels.contains('hot')) &&
         labels.contains('within_reach') &&
         labels.contains('unsecured')) {
-      baseScore = 0.4;
+      baseScore = 0.5;
     }
-    else if (labels.contains('exposed_wiring') || 
-             (labels.contains('poisonous') && labels.contains('unsecured'))) {
-      baseScore = 0.4;
+    else if (labels.contains('exposed_wiring') ||
+        (labels.contains('poisonous') && labels.contains('unsecured')) ||
+        labels.contains('explosive') ||
+        labels.contains('drowning')) {
+      baseScore = 0.5;
     }
 
-    // High Risk (0.3)
+    // High Risk (0.4) - NEW tier added
     else if (labels.contains('high_risk')) {
-      baseScore = 0.3;
+      baseScore = 0.4;
     }
     else if ((labels.contains('sharp') || labels.contains('choking')) &&
         labels.contains('within_reach')) {
-      baseScore = 0.3;
+      baseScore = 0.4;
     }
     else if (labels.contains('hot') && labels.contains('within_reach')) {
+      baseScore = 0.4;
+    }
+    else if (labels.contains('flammable') || labels.contains('toxic')) {
+      baseScore = 0.4;
+    }
+
+    // Moderate Risk (0.3) - UPDATED from 0.2 to 0.3
+    else if (labels.contains('moderate_risk')) {
+      baseScore = 0.3;
+    }
+    else if (labels.contains('sharp') ||
+        labels.contains('electrical') ||
+        labels.contains('heavy') ||
+        labels.contains('fragile')) {
       baseScore = 0.3;
     }
 
-    // Moderate Risk (0.2)
-    else if (labels.contains('moderate_risk')) {
-      baseScore = 0.2;
-    }
-    else if (labels.contains('sharp') || 
-             labels.contains('electrical') ||
-             labels.contains('heavy')) {
+    // Low Risk (0.2) - UPDATED from 0.1 to 0.2
+    else if (labels.contains('low_risk') || labels.contains('secured')) {
       baseScore = 0.2;
     }
 
-    // Low Risk (0.1)
-    else if (labels.contains('low_risk') || 
-             labels.contains('secured')) {
-      baseScore = 0.1;
-    }
-
-    // EDGE PROXIMITY BOOST
-    if (isNearEdge && baseScore < 0.4) {
+    // EDGE PROXIMITY BOOST (only for edge-sensitive objects)
+    if (isNearEdge && baseScore < 0.5) {
       baseScore += 0.1;
-      if (baseScore > 0.4) baseScore = 0.4;
+      if (baseScore > 0.5) baseScore = 0.5; // Cap at 0.5
     }
 
     return baseScore;
   }
 
   /// Convert risk score to human-readable level
-  /// Made PUBLIC so risk_classification.dart can use it
-  static String getRiskLevel(double score) {  // ✅ Removed underscore
-    if (score >= 0.4) return 'Highly Dangerous';
-    if (score >= 0.3) return 'High Risk';
-    if (score >= 0.2) return 'Moderate Risk';
-    return 'Low Risk';
+  /// UPDATED: Now uses 0.5 scale per thesis
+  static String getRiskLevel(double score) {
+    if (score >= 0.5) return 'Highly Dangerous';
+    if (score >= 0.4) return 'High Risk';
+    if (score >= 0.3) return 'Moderate Risk';
+    if (score >= 0.2) return 'Low Risk';
+    return 'Minimal Risk';
   }
 
   /// Convert to JSON
@@ -194,7 +200,6 @@ class HazardObject {
   }
 }
 
-
 /// Bounding box with edge detection capabilities
 class BoundingBox {
   final double x;
@@ -225,7 +230,6 @@ class BoundingBox {
   }
 
   /// Check if this bounding box is near an edge object
-  /// Uses center-to-center distance threshold
   bool isNearEdge(BoundingBox edgeBox, {double threshold = 0.15}) {
     double distance = distanceTo(edgeBox);
     return distance < threshold;
@@ -233,11 +237,9 @@ class BoundingBox {
 
   /// Check if this object is directly above an edge (risk of falling)
   bool isAboveEdge(BoundingBox edgeBox, {double horizontalOverlap = 0.3}) {
-    // Check if object's bottom is near edge's top
-    bool verticallyAligned = (bottom >= edgeBox.top - 0.05) && 
-                             (bottom <= edgeBox.top + 0.1);
-    
-    // Check horizontal overlap
+    bool verticallyAligned = (bottom >= edgeBox.top - 0.05) &&
+        (bottom <= edgeBox.top + 0.1);
+
     double overlapLeft = (left > edgeBox.left) ? left : edgeBox.left;
     double overlapRight = (right < edgeBox.right) ? right : edgeBox.right;
     double overlap = overlapRight - overlapLeft;
@@ -258,10 +260,10 @@ class BoundingBox {
 
   /// Check if bounding box overlaps with another
   bool overlaps(BoundingBox other) {
-    return !(right < other.left || 
-             other.right < left || 
-             bottom < other.top || 
-             other.bottom < top);
+    return !(right < other.left ||
+        other.right < left ||
+        bottom < other.top ||
+        other.bottom < top);
   }
 
   /// Calculate Intersection over Union (IoU) with another box
@@ -285,7 +287,7 @@ class BoundingBox {
   }
 
   /// Convert to JSON
-  Map<String, dynamic> toJson() {
+  Map<String, double> toJson() {
     return {
       'x': x,
       'y': y,
