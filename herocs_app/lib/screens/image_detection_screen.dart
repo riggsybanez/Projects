@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:image/image.dart' as img;
+
 import '../services/object_detection_service.dart';
 import '../models/hazard_object.dart';
 import '../models/household_danger_index.dart';
@@ -23,7 +24,7 @@ class _ImageDetectionScreenState extends State<ImageDetectionScreen> {
   HazardObject? _selectedHazard;
   final ImagePicker _picker = ImagePicker();
   Size _imageSize = Size.zero;
-  final GlobalKey _imageKey = GlobalKey(); // ✅ Key for getting image widget size
+  final GlobalKey _imageKey = GlobalKey();
 
   @override
   Widget build(BuildContext context) {
@@ -87,13 +88,12 @@ class _ImageDetectionScreenState extends State<ImageDetectionScreen> {
           child: GestureDetector(
             onTapDown: _handleImageTap,
             child: Container(
-              key: _imageKey, // ✅ Key for measuring widget
+              key: _imageKey,
               color: Colors.black,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
                   Image.file(_selectedImage!, fit: BoxFit.contain),
-                  
                   if (_detectedHazards.isNotEmpty && !_isProcessing)
                     CustomPaint(
                       painter: InteractiveBoundingBoxPainter(
@@ -102,7 +102,6 @@ class _ImageDetectionScreenState extends State<ImageDetectionScreen> {
                         imageSize: _imageSize,
                       ),
                     ),
-                  
                   if (_detectedHazards.isNotEmpty && !_isProcessing)
                     Positioned(
                       bottom: 16,
@@ -121,7 +120,6 @@ class _ImageDetectionScreenState extends State<ImageDetectionScreen> {
                         ),
                       ),
                     ),
-                  
                   if (_isProcessing)
                     Container(
                       color: Colors.black54,
@@ -144,7 +142,6 @@ class _ImageDetectionScreenState extends State<ImageDetectionScreen> {
             ),
           ),
         ),
-        
         if (_hdi != null)
           Container(
             padding: const EdgeInsets.all(16),
@@ -186,18 +183,16 @@ class _ImageDetectionScreenState extends State<ImageDetectionScreen> {
     );
   }
 
-  // ✅ FIXED: Handle tap with proper coordinate mapping
   void _handleImageTap(TapDownDetails details) {
     if (_detectedHazards.isEmpty) return;
 
-    // Get the container's render box
     final RenderBox? renderBox = _imageKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
 
     final size = renderBox.size;
     final localPosition = details.localPosition;
 
-    // Account for BoxFit.contain letterboxing
+    // Calculate letterbox offsets
     final imageAspectRatio = _imageSize.width / _imageSize.height;
     final containerAspectRatio = size.width / size.height;
 
@@ -218,7 +213,7 @@ class _ImageDetectionScreenState extends State<ImageDetectionScreen> {
       offsetX = (size.width - actualImageWidth) / 2;
     }
 
-    // Convert tap position to normalized coordinates (0-1)
+    // Convert to normalized coordinates
     final tapX = (localPosition.dx - offsetX) / actualImageWidth;
     final tapY = (localPosition.dy - offsetY) / actualImageHeight;
 
@@ -229,25 +224,19 @@ class _ImageDetectionScreenState extends State<ImageDetectionScreen> {
 
     print('🎯 Tap at normalized: ($tapX, $tapY)');
 
-    // Find which hazard's bounding box contains the tap
+    // Find tapped hazard
     for (var hazard in _detectedHazards) {
       final bbox = hazard.boundingBox;
-      final left = bbox.x;
-      final right = bbox.x + bbox.width;
-      final top = bbox.y;
-      final bottom = bbox.y + bbox.height;
-
-      print('   Checking ${hazard.objectName}: [$left-$right, $top-$bottom]');
-
-      if (tapX >= left && tapX <= right && tapY >= top && tapY <= bottom) {
+      if (tapX >= bbox.x &&
+          tapX <= (bbox.x + bbox.width) &&
+          tapY >= bbox.y &&
+          tapY <= (bbox.y + bbox.height)) {
         print('✅ Hit: ${hazard.objectName}');
         setState(() => _selectedHazard = hazard);
         _showHazardDetails(hazard);
         return;
       }
     }
-
-    print('❌ No hazard tapped');
   }
 
   void _showHazardDetails(HazardObject hazard) {
@@ -277,16 +266,15 @@ class _ImageDetectionScreenState extends State<ImageDetectionScreen> {
             children: [
               _buildDetailRow('Detection Confidence', '${(hazard.confidence * 100).toInt()}%'),
               const Divider(height: 24),
-              _buildDetailRow('Risk Level', hazard.riskLevel, 
+              _buildDetailRow('Risk Level', hazard.riskLevel,
                   color: _getHazardColor(hazard.riskLevel)),
               const Divider(height: 24),
               _buildDetailRow('Risk Score', '${hazard.riskScore.toStringAsFixed(2)} / 0.5',
                   color: _getHazardColor(hazard.riskLevel)),
               const Divider(height: 24),
-              _buildDetailRow('Position', 
+              _buildDetailRow('Position',
                   PositionalDetection.getHeightDescription(hazard.boundingBox.centerY),
                   color: _getPositionalColor(hazard.hazardLabels)),
-              
               if (hazard.isNearEdge) ...[
                 const SizedBox(height: 12),
                 Container(
@@ -314,7 +302,6 @@ class _ImageDetectionScreenState extends State<ImageDetectionScreen> {
                   ),
                 ),
               ],
-              
               const SizedBox(height: 16),
               const Text(
                 'Hazard Categories:',
@@ -395,11 +382,16 @@ class _ImageDetectionScreenState extends State<ImageDetectionScreen> {
 
   Color _getHazardColor(String riskLevel) {
     switch (riskLevel) {
-      case 'Highly Dangerous': return Colors.red.shade700;
-      case 'High Risk': return Colors.orange.shade700;
-      case 'Moderate Risk': return Colors.yellow.shade700;
-      case 'Low Risk': return Colors.green.shade700;
-      default: return Colors.grey;
+      case 'Highly Dangerous':
+        return Colors.red.shade700;
+      case 'High Risk':
+        return Colors.orange.shade700;
+      case 'Moderate Risk':
+        return Colors.yellow.shade700;
+      case 'Low Risk':
+        return Colors.green.shade700;
+      default:
+        return Colors.grey;
     }
   }
 
@@ -412,23 +404,37 @@ class _ImageDetectionScreenState extends State<ImageDetectionScreen> {
 
   IconData _getHazardIcon(String riskLevel) {
     switch (riskLevel) {
-      case 'Highly Dangerous': return Icons.dangerous;
-      case 'High Risk': return Icons.warning;
-      case 'Moderate Risk': return Icons.error_outline;
-      default: return Icons.info_outline;
+      case 'Highly Dangerous':
+        return Icons.dangerous;
+      case 'High Risk':
+        return Icons.warning;
+      case 'Moderate Risk':
+        return Icons.error_outline;
+      default:
+        return Icons.info_outline;
     }
   }
 
   Widget _buildHDICard() {
     if (_hdi == null) return const SizedBox.shrink();
-    
+
     Color hdiColor;
     switch (_hdi!.getSeverity()) {
-      case HDISeverity.critical: hdiColor = Colors.red; break;
-      case HDISeverity.high: hdiColor = Colors.orange; break;
-      case HDISeverity.moderate: hdiColor = Colors.yellow[700]!; break;
-      case HDISeverity.low: hdiColor = Colors.lightGreen; break;
-      case HDISeverity.safe: hdiColor = Colors.green; break;
+      case HDISeverity.critical:
+        hdiColor = Colors.red;
+        break;
+      case HDISeverity.high:
+        hdiColor = Colors.orange;
+        break;
+      case HDISeverity.moderate:
+        hdiColor = Colors.yellow[700]!;
+        break;
+      case HDISeverity.low:
+        hdiColor = Colors.lightGreen;
+        break;
+      case HDISeverity.safe:
+        hdiColor = Colors.green;
+        break;
     }
 
     return Container(
@@ -486,7 +492,7 @@ class _ImageDetectionScreenState extends State<ImageDetectionScreen> {
 
   Future<void> _processImage() async {
     if (_selectedImage == null) return;
-    
+
     setState(() => _isProcessing = true);
 
     try {
@@ -503,13 +509,18 @@ class _ImageDetectionScreenState extends State<ImageDetectionScreen> {
 
         final detectionService = Provider.of<ObjectDetectionService>(context, listen: false);
         final hazards = await detectionService.detectHazards(decodedImage);
+
+        // ✅ UPDATED: Filter out surface_edge from UI display (but keep in edge proximity detection)
+        final displayHazards = hazards.where((h) => h.objectName != 'surface_edge').toList();
+
+        // ✅ HDI calculation uses ALL hazards including surface_edge for accuracy
         final hdi = HouseholdDangerIndex(
-          detectedHazards: hazards,
+          detectedHazards: hazards, // Keep surface_edge for accurate HDI
           assessmentTime: DateTime.now(),
         );
 
         setState(() {
-          _detectedHazards = hazards;
+          _detectedHazards = displayHazards; // Only show non-edge hazards in UI
           _hdi = hdi;
           _isProcessing = false;
         });
@@ -531,7 +542,7 @@ class _ImageDetectionScreenState extends State<ImageDetectionScreen> {
 
   void _showRecommendations() {
     if (_hdi == null) return;
-    
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
@@ -553,7 +564,6 @@ class _ImageDetectionScreenState extends State<ImageDetectionScreen> {
               ..._hdi!.generateRecommendations().take(5).map((rec) {
                 IconData icon;
                 Color color;
-                
                 switch (rec.priority) {
                   case RecommendationPriority.urgent:
                     icon = Icons.warning;
@@ -603,7 +613,7 @@ class _ImageDetectionScreenState extends State<ImageDetectionScreen> {
   }
 }
 
-// Interactive bounding box painter
+// ✅ FIXED: Interactive bounding box painter with letterbox support
 class InteractiveBoundingBoxPainter extends CustomPainter {
   final List<HazardObject> hazards;
   final HazardObject? selectedHazard;
@@ -617,31 +627,63 @@ class InteractiveBoundingBoxPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (imageSize == Size.zero) return;
+
+    // ✅ Calculate letterbox offsets (same logic as tap handling)
+    final imageAspectRatio = imageSize.width / imageSize.height;
+    final containerAspectRatio = size.width / size.height;
+
+    double actualImageWidth;
+    double actualImageHeight;
+    double offsetX = 0;
+    double offsetY = 0;
+
+    if (imageAspectRatio > containerAspectRatio) {
+      // Image is wider - letterbox top/bottom
+      actualImageWidth = size.width;
+      actualImageHeight = size.width / imageAspectRatio;
+      offsetY = (size.height - actualImageHeight) / 2;
+    } else {
+      // Image is taller - letterbox left/right
+      actualImageHeight = size.height;
+      actualImageWidth = size.height * imageAspectRatio;
+      offsetX = (size.width - actualImageWidth) / 2;
+    }
+
     for (var hazard in hazards) {
       final isSelected = selectedHazard == hazard;
-      
+
       Color boxColor;
       switch (hazard.riskLevel) {
-        case 'Highly Dangerous': boxColor = Colors.red; break;
-        case 'High Risk': boxColor = Colors.orange; break;
-        case 'Moderate Risk': boxColor = Colors.yellow; break;
-        default: boxColor = Colors.green;
+        case 'Highly Dangerous':
+          boxColor = Colors.red;
+          break;
+        case 'High Risk':
+          boxColor = Colors.orange;
+          break;
+        case 'Moderate Risk':
+          boxColor = Colors.yellow;
+          break;
+        default:
+          boxColor = Colors.green;
       }
-      
+
       final bbox = hazard.boundingBox;
-      final left = bbox.x * size.width;
-      final top = bbox.y * size.height;
-      final width = bbox.width * size.width;
-      final height = bbox.height * size.height;
-      
+
+      // ✅ Map normalized coordinates (0-1) to actual image area
+      final left = offsetX + (bbox.x * actualImageWidth);
+      final top = offsetY + (bbox.y * actualImageHeight);
+      final width = bbox.width * actualImageWidth;
+      final height = bbox.height * actualImageHeight;
+
       // Draw bounding box
       final paint = Paint()
         ..color = boxColor.withOpacity(isSelected ? 1.0 : 0.7)
         ..style = PaintingStyle.stroke
         ..strokeWidth = isSelected ? 5 : 3;
-      
+
       canvas.drawRect(Rect.fromLTWH(left, top, width, height), paint);
-      
+
       // Highlight selected
       if (isSelected) {
         final fillPaint = Paint()
@@ -649,7 +691,7 @@ class InteractiveBoundingBoxPainter extends CustomPainter {
           ..style = PaintingStyle.fill;
         canvas.drawRect(Rect.fromLTWH(left, top, width, height), fillPaint);
       }
-      
+
       // Draw label
       final labelText = '${hazard.objectName.replaceAll('_', ' ')} ${(hazard.confidence * 100).toInt()}%';
       final textPainter = TextPainter(
@@ -664,11 +706,14 @@ class InteractiveBoundingBoxPainter extends CustomPainter {
         ),
         textDirection: TextDirection.ltr,
       );
+
       textPainter.layout();
-      
       final labelTop = top > 30 ? top - 28 : top + height + 4;
-      
-      final labelBgPaint = Paint()..color = boxColor..style = PaintingStyle.fill;
+
+      final labelBgPaint = Paint()
+        ..color = boxColor
+        ..style = PaintingStyle.fill;
+
       canvas.drawRRect(
         RRect.fromRectAndRadius(
           Rect.fromLTWH(left, labelTop, textPainter.width + 12, 24),
@@ -676,9 +721,10 @@ class InteractiveBoundingBoxPainter extends CustomPainter {
         ),
         labelBgPaint,
       );
-      
+
       textPainter.paint(canvas, Offset(left + 6, labelTop + 4));
-      
+
+      // Tap icon
       if (!isSelected) {
         final iconPainter = TextPainter(
           text: const TextSpan(text: '👆', style: TextStyle(fontSize: 18)),
@@ -687,7 +733,8 @@ class InteractiveBoundingBoxPainter extends CustomPainter {
         iconPainter.layout();
         iconPainter.paint(canvas, Offset(left + width - 28, top + 4));
       }
-      
+
+      // Edge warning
       if (hazard.isNearEdge) {
         final edgeIcon = TextPainter(
           text: const TextSpan(text: '⚠️', style: TextStyle(fontSize: 20)),

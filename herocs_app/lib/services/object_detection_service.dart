@@ -1,5 +1,3 @@
-// lib/services/object_detection_service.dart
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
@@ -23,17 +21,15 @@ class ObjectDetectionService extends ChangeNotifier {
   
   // ✅ BLACKLIST: Classes that perform poorly
   static const Set<String> BLOCKED_CLASSES = {
-    'exposed_metal_bed_frame',  // Misclassifies everything
-    'stool',                      // 2.4% precision
-    'lead_paint',                 // 24.6% precision
-    'hard_object',                // 0% recall
-    'fragile_furniture',          // 0% recall
-    'choking_object',             // 0% recall
+    //'surface_edge',               0.55% recall
+    'water_bucket',              // 7.1% recall
+    'electric_wire',             // 12.6% recall
+    'exposed_metal_bed_frame',             // 0% recall
   };
   
   // DATA-DRIVEN: Based on validation metrics
   static const Map<String, double> CLASS_CONFIDENCE_MULTIPLIERS = {
-    'fragile_object': 1,
+    /*'fragile_object': 1,
     'water_bucket': 1,
     'gas_container': 1,
     'pharmaceutical': 1.2,
@@ -42,21 +38,36 @@ class ObjectDetectionService extends ChangeNotifier {
     'surface_edge': 0.7,
     'furniture_sharp_corner': 0.7,
     'electric_plug': 1,
-    'staircase_no_railing': 0.8,
+    'staircase_no_railing': 0.8,*/
   };
   
   static const Map<String, double> MIN_CONFIDENCE_THRESHOLD = {
-    'surface_edge': 0.5,
-    'staircase_no_railing': 0.5,
-    'furniture_sharp_corner': 0.5,
-    'electric_plug': 0.45,
+    // HIGH PERFORMERS - stricter thresholds
+    'stove': 0.5,                    // 87.4% mAP@50
+    'flammable_object': 0.6,         // 99.5% mAP@50
+    'appliance_furniture': 0.5,      // 92.3% mAP@50
+    'fragile_furniture': 0.5,        // 99.5% mAP@50
     
-    'toxic_chemical': 0.2,
-    'pharmaceutical': 0.2,
-    'gas_container': 0.25,
-    'stove': 0.25,
-    'flammable_object': 0.25,
-    'flammable_liquid': 0.25,
+    // MODERATE PERFORMERS - balanced thresholds
+    'toxic_chemical': 0.3,           // 75.0% recall
+    'sharp_object': 0.3,             // 63.6% recall
+    'hot_container': 0.3,            // 65.6% mAP@50
+    'pharmaceutical': 0.3,
+    'cleaning_product': 0.3,
+    
+    // LOW PERFORMERS - more lenient (but avoid if possible)
+    'electric_plug': 0.25,           // 16.7% recall (poor)
+    'staircase_no_railing': 0.4,
+    'furniture_sharp_corner': 0.3,
+    'choking_object': 0.4,
+    'furniture_low': 0.4,
+    'furniture_unstable': 0.3,
+    'hard_object': 0.3,
+    'lead_paint': 0.3,
+    'stool': 0.3,
+    'fragile_object': 0.3,
+    'unprotected_balcony': 0.3,
+    'surface_edge': 0.35,
   };
 
   bool get isModelLoaded => _isModelLoaded;
@@ -66,7 +77,7 @@ class ObjectDetectionService extends ChangeNotifier {
       print('📦 Loading YOLOv8 model...');
 
       _interpreter = await Interpreter.fromAsset(
-        'assets/models/yolov8n_herocs.tflite',
+        'assets/models/yolov8s_herocs.tflite',
         options: InterpreterOptions()..threads = 4,
       );
 

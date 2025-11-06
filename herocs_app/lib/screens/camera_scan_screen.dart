@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:provider/provider.dart';
 import 'package:image/image.dart' as img;
+
 import '../services/object_detection_service.dart';
 import '../models/hazard_object.dart';
 import '../models/household_danger_index.dart';
@@ -20,11 +21,11 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
   List<CameraDescription>? _cameras;
   bool _isCameraInitialized = false;
   bool _isDetecting = false;
-  
+
   // Detection results
   List<HazardObject> _detectedHazards = [];
   HouseholdDangerIndex? _hdi;
-  
+
   // For periodic detection
   Timer? _detectionTimer;
 
@@ -37,7 +38,6 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
   Future<void> _initializeCamera() async {
     try {
       _cameras = await availableCameras();
-      
       if (_cameras!.isEmpty) {
         print('No cameras found');
         return;
@@ -51,12 +51,11 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
       );
 
       await _cameraController!.initialize();
-      
+
       if (mounted) {
         setState(() {
           _isCameraInitialized = true;
         });
-        
         // Start periodic detection (every 1 second)
         _startPeriodicDetection();
       }
@@ -75,7 +74,7 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
 
   Future<void> _runDetection() async {
     if (_isDetecting || _cameraController == null) return;
-    
+
     setState(() {
       _isDetecting = true;
     });
@@ -83,29 +82,31 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
     try {
       // Capture image from camera
       final image = await _cameraController!.takePicture();
-      
+
       // Convert to image package format
       final bytes = await image.readAsBytes();
       final decodedImage = img.decodeImage(bytes);
-      
+
       if (decodedImage != null) {
         // Run detection
         final detectionService = Provider.of<ObjectDetectionService>(
           context,
           listen: false,
         );
-        
         final hazards = await detectionService.detectHazards(decodedImage);
-        
-        // Calculate HDI
-        final hdi = HouseholdDangerIndex(  // ✅ Use the regular constructor
-          detectedHazards: hazards,
+
+        // ✅ UPDATED: Filter out surface_edge from UI display (but keep in edge proximity detection)
+        final displayHazards = hazards.where((h) => h.objectName != 'surface_edge').toList();
+
+        // ✅ HDI calculation uses ALL hazards including surface_edge for accuracy
+        final hdi = HouseholdDangerIndex(
+          detectedHazards: hazards, // Keep surface_edge for accurate HDI
           assessmentTime: DateTime.now(),
         );
-        
+
         if (mounted) {
           setState(() {
-            _detectedHazards = hazards;
+            _detectedHazards = displayHazards; // Only show non-edge hazards in UI
             _hdi = hdi;
           });
         }
@@ -144,7 +145,7 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
         children: [
           // Camera preview
           CameraPreview(_cameraController!),
-          
+
           // AR Bounding boxes overlay
           if (_detectedHazards.isNotEmpty)
             CustomPaint(
@@ -156,7 +157,7 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                 ),
               ),
             ),
-          
+
           // Top overlay - HDI card
           Positioned(
             top: 50,
@@ -164,7 +165,7 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
             right: 16,
             child: _buildHDICard(),
           ),
-          
+
           // Bottom overlay - Detection count
           Positioned(
             bottom: 30,
@@ -172,7 +173,7 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
             right: 16,
             child: _buildDetectionInfo(),
           ),
-          
+
           // Back button
           Positioned(
             top: 50,
@@ -185,7 +186,7 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
               ),
             ),
           ),
-          
+
           // Detecting indicator
           if (_isDetecting)
             Positioned(
@@ -205,7 +206,7 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                       height: 16,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation(Colors.white),
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     ),
                     SizedBox(width: 8),
@@ -228,17 +229,17 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
     }
 
     Color hdiColor;
-    switch (_hdi!.getSeverity()) {  // ✅ Call getSeverity() method instead of .severity property
-      case HDISeverity.critical:     // ✅ Changed from criticallyUnsafe
+    switch (_hdi!.getSeverity()) {
+      case HDISeverity.critical:
         hdiColor = Colors.red;
         break;
-      case HDISeverity.high:         // ✅ Changed from highlyUnsafe
+      case HDISeverity.high:
         hdiColor = Colors.orange;
         break;
-      case HDISeverity.moderate:     // ✅ Changed from unsafe
+      case HDISeverity.moderate:
         hdiColor = Colors.yellow[700]!;
         break;
-      case HDISeverity.low:          // ✅ Added this case
+      case HDISeverity.low:
         hdiColor = Colors.lightGreen;
         break;
       case HDISeverity.safe:
@@ -312,7 +313,6 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
             ),
             ElevatedButton(
               onPressed: _detectedHazards.isEmpty ? null : () {
-                // TODO: Navigate to results screen
                 _showResultsDialog();
               },
               child: Text('View Report'),
@@ -325,7 +325,7 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
 
   void _showResultsDialog() {
     if (_hdi == null) return;
-    
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
@@ -350,6 +350,7 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
               ...(_hdi!.generateRecommendations().take(5).map((rec) {
                 IconData icon;
                 Color color;
+
                 switch (rec.priority) {
                   case RecommendationPriority.urgent:
                     icon = Icons.warning;
@@ -364,7 +365,7 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                     color = Colors.blue;
                     break;
                 }
-                
+
                 return Padding(
                   padding: EdgeInsets.only(bottom: 12),
                   child: Row(

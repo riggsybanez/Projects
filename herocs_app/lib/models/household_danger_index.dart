@@ -1,10 +1,7 @@
-// lib/models/household_danger_index.dart
-
 import 'hazard_object.dart';
 
 /// Calculates and manages the Household Danger Index (HDI)
-/// Based on the thesis formula: HDI = (Sum of risk scores) / Number of hazards
-/// Scale: 0.0 - 0.5 (from thesis Table 1.0)
+
 class HouseholdDangerIndex {
   final List<HazardObject> detectedHazards;
   final DateTime assessmentTime;
@@ -17,7 +14,6 @@ class HouseholdDangerIndex {
   });
 
   /// Calculate the HDI score (0.0 - 0.5)
-  /// Updated to allow full 0.5 range per thesis Table 1.0
   double calculateHDI() {
     if (detectedHazards.isEmpty) return 0.0;
     
@@ -87,7 +83,6 @@ class HouseholdDangerIndex {
   }
 
   /// Generate contextual safety recommendations based on detected hazards
-  /// Updated priority thresholds to align with 0.5 scale
   List<SafetyRecommendation> generateRecommendations() {
     List<SafetyRecommendation> recommendations = [];
 
@@ -113,7 +108,7 @@ class HouseholdDangerIndex {
       if (processedObjects.contains(objectKey)) continue;
       processedObjects.add(objectKey);
 
-      // Determine priority based on UPDATED risk thresholds (0.5 scale)
+      // Determine priority based on risk thresholds (0.5 scale)
       RecommendationPriority priority;
       if (hazard.riskScore >= 0.4) {
         priority = RecommendationPriority.urgent;     // Critically dangerous
@@ -222,8 +217,7 @@ class HouseholdDangerIndex {
     return 'General Safety';
   }
 
-  /// Get overall safety status message (English)
-  /// Updated thresholds to match thesis Table 1.0
+  /// Get overall safety status message
   String getOverallSafetyMessage() {
     double hdi = calculateHDI();
     
@@ -258,7 +252,6 @@ class HouseholdDangerIndex {
 }
 
 /// Severity levels for UI representation
-/// Aligned with thesis Table 1.0 HDI ranges
 enum HDISeverity {
   safe,      // 0.0 - 0.1
   low,       // 0.1 - 0.2

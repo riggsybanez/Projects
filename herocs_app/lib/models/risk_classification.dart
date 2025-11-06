@@ -1,43 +1,35 @@
-// lib/models/risk_classification.dart
-
 import 'hazard_object.dart';
 import 'household_danger_index.dart';
-
-/// Complete risk classification system for HEROCS
 /// Implements multi-label framework: Categorical + Positional + Contextual
-/// Based on thesis requirements for Filipino household hazard detection
 
 class RiskClassification {
 
-  // ========== YOUR 26 UPDATED OBJECT CLASSES ==========
   /// Object classes from HEROCS Roboflow dataset
   static const List<String> objectClasses = [
-    'surface_edge',
-    'hot_container',
-    'electric_wire',
-    'fragile_object',
-    'electric_plug',
-    'cleaning_product',
-    'sharp_object',
-    'stove',
-    'furniture_sharp_corner',
     'appliance_furniture',
-    'staircase_no_railing',
-    'furniture_low',
-    'pharmaceutical',
-    'stool',
-    'water_bucket',
-    'lead_paint',
-    'toxic_chemical',
-    'hard_object',
     'choking_object',
-    'fragile_furniture',
-    'gas_container',
-    'flammable_object',
+    'cleaning_product',
+    'electric_plug',
+    'electric_wire',
     'exposed_metal_bed_frame',
+    'flammable_object', 
+    'fragile_furniture',
+    'fragile_object',
+    'furniture_low',
+    'furniture_sharp_corner',
     'furniture_unstable',
+    'hard_object',
+    'hot_container',
+    'lead_paint',
+    'pharmaceutical',
+    'sharp_object',
+    'staircase_no_railing',
+    'stool',
+    'stove',
+    'surface_edge',
+    'toxic_chemical',
     'unprotected_balcony',
-    'flammable_liquid',
+    'water_bucket',
   ];
 
   // ========== MULTI-LABEL FRAMEWORK CATEGORIES ==========
@@ -152,7 +144,6 @@ class RiskClassification {
   // ========== CATEGORICAL HAZARD DETECTION ==========
   /// Get inherent hazard properties based on object class
   /// Returns categorical labels (sharp, hot, electrical, poisonous, etc.)
-  /// ALL 26 CLASSES FULLY COVERED
   static List<String> _getInherentHazards(String objectClass) {
     String normalized = objectClass.toLowerCase().trim();
 
@@ -199,14 +190,8 @@ class RiskClassification {
         return ['hot', 'high_risk'];
 
       // ===== FLAMMABLE/EXPLOSIVE =====
-      case 'gas_container':
-        return ['explosive', 'flammable', 'highly_dangerous'];
-      
-      case 'flammable_object':
-        return ['flammable', 'high_risk'];
-      
-      case 'flammable_liquid':
-        return ['flammable', 'poisonous', 'highly_dangerous'];
+      case 'flammable_object':  
+        return ['flammable', 'explosive', 'highly_dangerous'];
 
       // ===== DROWNING HAZARDS =====
       case 'water_bucket':
@@ -280,7 +265,6 @@ class RiskClassification {
 
   // ========== EDGE PROXIMITY DETECTION ==========
   /// Detect spatial relationships between hazards and edges
-  /// REFINED: Only applies to edge-sensitive objects (fragile, sharp, hard)
   static List<HazardObject> detectEdgeProximity(
     List<HazardObject> allDetections,
   ) {
@@ -353,7 +337,7 @@ class RiskClassification {
     return [...updatedHazards, ...edges];
   }
 
-  // ========== COMPLETE SPATIAL CONTEXT DETECTION ==========
+
   /// Master function: Applies all spatial context detection
   /// Combines positional detection + edge proximity + surface association
   static List<HazardObject> detectSpatialContext(
@@ -427,9 +411,8 @@ class RiskClassification {
     return null;
   }
 
-  // ========== RECOMMENDATION GENERATION (ENGLISH ONLY) ==========
-  /// Generate English safety recommendations
-  /// ALL 26 CLASSES COVERED
+
+  /// Generate safety recommendations
   static String getRecommendation(HazardObject hazard) {
     String objectName = hazard.objectName.replaceAll('_', ' ');
 
@@ -456,21 +439,9 @@ class RiskClassification {
           'Children can drown in as little as 2 inches of water. Never leave water containers unattended.';
     }
 
-    // Priority 4: Explosive/flammable
-    if (hazard.hazardLabels.contains('explosive')) {
-      return '💥 EXTREME HAZARD: Store $objectName in a locked outdoor storage area away from '
-          'children and heat sources. Ensure proper ventilation and safety protocols.';
-    }
-
-    if (hazard.hazardLabels.contains('flammable') && 
-        hazard.objectName == 'flammable_liquid') {
-      return '🔥 DANGER: Store flammable liquids in approved containers in a locked cabinet '
-          'away from children, heat sources, and open flames. Keep out of reach (above 96cm).';
-    }
-
-    if (hazard.hazardLabels.contains('flammable')) {
-      return '🔥 WARNING: Store $objectName away from heat sources and open flames. '
-          'Keep in a high, locked location out of children\'s reach.';
+    // Priority 4: Flammable/explosive
+    if (hazard.hazardLabels.contains('explosive') || hazard.hazardLabels.contains('flammable')) {
+      return "⚠️ EXTREME HAZARD: Store ${objectName} in a locked outdoor storage area or high locked cabinet (above 96cm) away from children, heat sources, and open flames. Ensure proper ventilation.";
     }
 
     // Priority 5: Electrical hazards
@@ -715,7 +686,7 @@ class PositionalDetection {
     return labels;
   }
 
-  /// Get human-readable height description (English)
+  /// Get height description
   static String getHeightDescription(double normalizedY) {
     double height = estimateHeightFromImagePosition(normalizedY);
     if (height < FLOOR_THRESHOLD) {

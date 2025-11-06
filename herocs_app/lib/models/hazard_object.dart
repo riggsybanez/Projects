@@ -1,5 +1,3 @@
-// lib/models/hazard_object.dart
-
 import 'dart:math';
 
 /// Represents a single hazard detected by the YOLO model
@@ -62,11 +60,10 @@ class HazardObject {
   }
 
   /// Calculate risk score with edge proximity boost
-  /// UPDATED: Now supports full 0.5 scale per thesis Table 1.0
   static double calculateRiskScore(List<String> labels, bool isNearEdge) {
     double baseScore = 0.1;
 
-    // Highly Dangerous (0.5) - UPDATED from 0.4 to 0.5
+    // Highly Dangerous (0.5)
     if (labels.contains('highly_dangerous')) {
       baseScore = 0.5;
     }
@@ -82,7 +79,7 @@ class HazardObject {
       baseScore = 0.5;
     }
 
-    // High Risk (0.4) - NEW tier added
+    // High Risk (0.4)
     else if (labels.contains('high_risk')) {
       baseScore = 0.4;
     }
@@ -97,7 +94,7 @@ class HazardObject {
       baseScore = 0.4;
     }
 
-    // Moderate Risk (0.3) - UPDATED from 0.2 to 0.3
+    // Moderate Risk (0.3)
     else if (labels.contains('moderate_risk')) {
       baseScore = 0.3;
     }
@@ -108,7 +105,7 @@ class HazardObject {
       baseScore = 0.3;
     }
 
-    // Low Risk (0.2) - UPDATED from 0.1 to 0.2
+    // Low Risk (0.2)
     else if (labels.contains('low_risk') || labels.contains('secured')) {
       baseScore = 0.2;
     }
@@ -122,8 +119,7 @@ class HazardObject {
     return baseScore;
   }
 
-  /// Convert risk score to human-readable level
-  /// UPDATED: Now uses 0.5 scale per thesis
+  /// Convert risk score
   static String getRiskLevel(double score) {
     if (score >= 0.5) return 'Highly Dangerous';
     if (score >= 0.4) return 'High Risk';
